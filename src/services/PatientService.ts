@@ -1,7 +1,7 @@
 
 import { Patient } from '@/models/PatientTypes';
 import * as XLSX from 'xlsx';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 const STORAGE_KEY = 'vision_patients';
 

@@ -1,334 +1,233 @@
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { format } from 'date-fns';
-import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Patient, EyeDetails } from '@/models/PatientTypes';
 import { PatientService } from '@/services/PatientService';
-import { cn } from '@/lib/utils';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-const eyeSchema = z.object({
-  sphere: z.string().optional(),
-  cylinder: z.string().optional(),
-  axis: z.string().optional(),
-  add: z.string().optional(),
-});
-
-const formSchema = z.object({
-  date: z.date({
-    required_error: "Date is required",
-  }),
-  name: z.string().min(1, { message: "Name is required" }),
-  mobile: z.string().min(10, { message: "Mobile number should be at least 10 digits" }),
-  rightEye: eyeSchema,
-  leftEye: eyeSchema,
-  framePrice: z.string().optional(),
-  glassPrice: z.string().optional(),
-  remarks: z.string().min(1, { message: "Remarks are required" }),
-});
-
-type FormData = z.infer<typeof formSchema>;
+import { toast } from 'sonner';
 
 export const PatientForm = ({ onSuccess }: { onSuccess: () => void }) => {
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      date: new Date(),
-      name: "",
-      mobile: "",
-      rightEye: { sphere: "", cylinder: "", axis: "", add: "" },
-      leftEye: { sphere: "", cylinder: "", axis: "", add: "" },
-      framePrice: "",
-      glassPrice: "",
-      remarks: "",
-    },
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [name, setName] = useState('');
+  const [mobile, setMobile] = useState('');
+  
+  const [rightEye, setRightEye] = useState<EyeDetails>({
+    sphere: '',
+    cylinder: '',
+    axis: '',
+    add: ''
   });
+  
+  const [leftEye, setLeftEye] = useState<EyeDetails>({
+    sphere: '',
+    cylinder: '',
+    axis: '',
+    add: ''
+  });
+  
+  const [framePrice, setFramePrice] = useState('');
+  const [glassPrice, setGlassPrice] = useState('');
+  const [remarks, setRemarks] = useState('');
 
-  const onSubmit = (data: FormData) => {
-    const patient: Patient = {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!date || !name || !mobile || !remarks) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+    
+    const newPatient: Patient = {
       id: crypto.randomUUID(),
-      date: format(data.date, 'yyyy-MM-dd'),
-      name: data.name,
-      mobile: data.mobile,
-      rightEye: data.rightEye,
-      leftEye: data.leftEye,
-      framePrice: data.framePrice || '',
-      glassPrice: data.glassPrice || '',
-      remarks: data.remarks,
+      date,
+      name,
+      mobile,
+      rightEye,
+      leftEye,
+      framePrice,
+      glassPrice,
+      remarks
     };
-
-    if (PatientService.add(patient)) {
-      form.reset();
+    
+    if (PatientService.add(newPatient)) {
+      // Reset form
+      setDate(new Date().toISOString().split('T')[0]);
+      setName('');
+      setMobile('');
+      setRightEye({ sphere: '', cylinder: '', axis: '', add: '' });
+      setLeftEye({ sphere: '', cylinder: '', axis: '', add: '' });
+      setFramePrice('');
+      setGlassPrice('');
+      setRemarks('');
+      
       onSuccess();
     }
+  };
+
+  const handleRightEyeChange = (field: keyof EyeDetails, value: string) => {
+    setRightEye(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleLeftEyeChange = (field: keyof EyeDetails, value: string) => {
+    setLeftEye(prev => ({ ...prev, [field]: value }));
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>New Patient Record</CardTitle>
+        <CardTitle>Add New Patient</CardTitle>
       </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Date Field */}
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 z-50" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Name Field */}
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Patient Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter full name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Mobile Field */}
-              <FormField
-                control={form.control}
-                name="mobile"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mobile Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter mobile number" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Must be unique for each patient
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="date">Date *</Label>
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
               />
             </div>
-
-            {/* Right Eye Details */}
             <div className="space-y-2">
-              <h3 className="text-lg font-medium">Right Eye Details</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <FormField
-                  control={form.control}
-                  name="rightEye.sphere"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sphere</FormLabel>
-                      <FormControl>
-                        <Input placeholder="SPH" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="rightEye.cylinder"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cylinder</FormLabel>
-                      <FormControl>
-                        <Input placeholder="CYL" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="rightEye.axis"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Axis</FormLabel>
-                      <FormControl>
-                        <Input placeholder="AXIS" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="rightEye.add"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Add</FormLabel>
-                      <FormControl>
-                        <Input placeholder="ADD" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mobile">Mobile *</Label>
+              <Input
+                id="mobile"
+                type="tel"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-md font-medium mb-3">Right Eye</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="rsphere">Sphere</Label>
+                  <Input
+                    id="rsphere"
+                    value={rightEye.sphere}
+                    onChange={(e) => handleRightEyeChange('sphere', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="rcylinder">Cylinder</Label>
+                  <Input
+                    id="rcylinder"
+                    value={rightEye.cylinder}
+                    onChange={(e) => handleRightEyeChange('cylinder', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="raxis">Axis</Label>
+                  <Input
+                    id="raxis"
+                    value={rightEye.axis}
+                    onChange={(e) => handleRightEyeChange('axis', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="radd">Add</Label>
+                  <Input
+                    id="radd"
+                    value={rightEye.add}
+                    onChange={(e) => handleRightEyeChange('add', e.target.value)}
+                  />
+                </div>
               </div>
             </div>
-
-            {/* Left Eye Details */}
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium">Left Eye Details</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <FormField
-                  control={form.control}
-                  name="leftEye.sphere"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sphere</FormLabel>
-                      <FormControl>
-                        <Input placeholder="SPH" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="leftEye.cylinder"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cylinder</FormLabel>
-                      <FormControl>
-                        <Input placeholder="CYL" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="leftEye.axis"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Axis</FormLabel>
-                      <FormControl>
-                        <Input placeholder="AXIS" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="leftEye.add"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Add</FormLabel>
-                      <FormControl>
-                        <Input placeholder="ADD" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+            
+            <div>
+              <h3 className="text-md font-medium mb-3">Left Eye</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="lsphere">Sphere</Label>
+                  <Input
+                    id="lsphere"
+                    value={leftEye.sphere}
+                    onChange={(e) => handleLeftEyeChange('sphere', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lcylinder">Cylinder</Label>
+                  <Input
+                    id="lcylinder"
+                    value={leftEye.cylinder}
+                    onChange={(e) => handleLeftEyeChange('cylinder', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="laxis">Axis</Label>
+                  <Input
+                    id="laxis"
+                    value={leftEye.axis}
+                    onChange={(e) => handleLeftEyeChange('axis', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ladd">Add</Label>
+                  <Input
+                    id="ladd"
+                    value={leftEye.add}
+                    onChange={(e) => handleLeftEyeChange('add', e.target.value)}
+                  />
+                </div>
               </div>
             </div>
-
-            {/* Pricing Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="framePrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Frame Price</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter frame price" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="glassPrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Glass Price</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter glass price" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="framePrice">Frame Price</Label>
+              <Input
+                id="framePrice"
+                type="text"
+                value={framePrice}
+                onChange={(e) => setFramePrice(e.target.value)}
               />
             </div>
-
-            {/* Remarks */}
-            <FormField
-              control={form.control}
-              name="remarks"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Remarks</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Enter additional information or remarks"
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <div className="space-y-2">
+              <Label htmlFor="glassPrice">Glass Price</Label>
+              <Input
+                id="glassPrice"
+                type="text"
+                value={glassPrice}
+                onChange={(e) => setGlassPrice(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="remarks">Remarks *</Label>
+            <Textarea
+              id="remarks"
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              placeholder="Enter any additional notes"
+              required
             />
-
-            <Button type="submit" className="w-full">Save Patient Record</Button>
-          </form>
-        </Form>
-      </CardContent>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button type="submit" className="w-full sm:w-auto">Add Patient</Button>
+        </CardFooter>
+      </form>
     </Card>
   );
 };

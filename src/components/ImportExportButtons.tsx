@@ -3,7 +3,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { PatientService } from '@/services/PatientService';
 import { Import, FileUp, Loader2 } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 export const ImportExportButtons = ({ onImportSuccess }: { onImportSuccess: () => void }) => {
   const [isImporting, setIsImporting] = useState(false);
